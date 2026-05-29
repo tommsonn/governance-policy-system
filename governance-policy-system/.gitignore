@@ -1,0 +1,4 @@
+echo "*.log
+*.tmp
+.DS_Store
+docker-compose-override.yml" > .gitignorenode_modules
