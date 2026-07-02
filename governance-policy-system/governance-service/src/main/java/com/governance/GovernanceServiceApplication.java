@@ -1,4 +1,4 @@
-package com.governance.governance_service;
+package com.governance;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
