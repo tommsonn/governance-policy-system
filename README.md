@@ -50,10 +50,11 @@ DRAFT → PENDING_APPROVAL → REJECTED
      on cmd run docker-compose up -d
    This starts:
 
-   PostgreSQL on port 5432 (Governance DB)
-   PostgreSQL on port 5433 (Audit DB)
-   Zookeeper on port 2181
-   Kafka on port 9092
+    PostgreSQL on port 5432 (Governance DB)
+    PostgreSQL on port 5433 (Audit DB)
+    Zookeeper on port 2181
+    Kafka on port 9092
+    
   2. Create Kafka Topic
     run below command on cmd
     docker exec -it kafka-broker kafka-topics --create \
