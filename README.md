@@ -56,17 +56,18 @@ DRAFT → PENDING_APPROVAL → REJECTED
     Kafka on port 9092
     
   2. Create Kafka Topic
-    run below command on cmd
-    docker exec -it kafka-broker kafka-topics --create \
-    --topic governance-events \
-    --bootstrap-server localhost:9092 \
-    --partitions 3 \
-    --replication-factor 1
+  run below command on cmd
 
-   3. Running the Services
+     docker exec -it kafka-broker kafka-topics --create \
+       --topic governance-events \
+       --bootstrap-server localhost:9092 \
+       --partitions 3 \
+       --replication-factor 1
+
+   4. Running the Services
       - Start Governance Service
       - Start Audit Service
-   4. Testing the System
+   5. Testing the System
       using Swagger UI test the system with  this URL http://localhost:8081/swagger-ui/index.html
       
 
