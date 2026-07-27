@@ -6,15 +6,21 @@ import com.governance.dto.PolicyResponse;
 import com.governance.dto.PolicyStatusUpdateRequest;
 import com.governance.exception.InvalidPolicyStatusTransitionException;
 import com.governance.exception.PolicyNotFoundException;
+import com.governance.grpc.AuditRequest;
+import com.governance.grpc.AuditResponse;
+import com.governance.grpc.AuditServiceGrpc;
 import com.governance.model.Policy;
 import com.governance.model.PolicyStatus;
 import com.governance.repository.PolicyRepository;
+import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +32,11 @@ public class PolicyService {
 
     private final PolicyRepository policyRepository;
     private final KafkaTemplate<String, GovernanceEvent> kafkaTemplate;
+    private final AuditServiceGrpc.AuditServiceBlockingStub auditServiceStub;
+
+    @Value("${app.audit.mode:both}")
+    private String auditMode; // "kafka", "grpc", "both"
+
     private static final String GOVERNANCE_EVENTS_TOPIC = "governance-events";
 
     @Transactional
@@ -41,14 +52,20 @@ public class PolicyService {
 
         Policy savedPolicy = policyRepository.save(policy);
 
-        publishEvent(GovernanceEvent.builder()
+        // Publish event to Kafka
+        GovernanceEvent event = GovernanceEvent.builder()
                 .eventType("policy-created")
                 .policyId(savedPolicy.getId())
                 .actor(savedPolicy.getCreatedBy())
                 .policyTitle(savedPolicy.getTitle())
                 .newStatus(savedPolicy.getStatus().toString())
                 .timestamp(LocalDateTime.now())
-                .build());
+                .build();
+
+        publishEvent(event);
+
+        // Log via gRPC
+        logAuditViaGrpc("policy-created", savedPolicy.getId(), savedPolicy.getCreatedBy());
 
         log.info("Policy created successfully with ID: {}", savedPolicy.getId());
         return mapToResponse(savedPolicy);
@@ -80,7 +97,7 @@ public class PolicyService {
         policy.setStatus(PolicyStatus.PENDING_APPROVAL);
         Policy updatedPolicy = policyRepository.save(policy);
 
-        publishEvent(GovernanceEvent.builder()
+        GovernanceEvent event = GovernanceEvent.builder()
                 .eventType("policy-submitted")
                 .policyId(updatedPolicy.getId())
                 .actor(request.getActor())
@@ -88,7 +105,10 @@ public class PolicyService {
                 .previousStatus(PolicyStatus.DRAFT.toString())
                 .newStatus(updatedPolicy.getStatus().toString())
                 .timestamp(LocalDateTime.now())
-                .build());
+                .build();
+
+        publishEvent(event);
+        logAuditViaGrpc("policy-submitted", updatedPolicy.getId(), request.getActor());
 
         log.info("Policy submitted successfully with ID: {}", id);
         return mapToResponse(updatedPolicy);
@@ -106,7 +126,7 @@ public class PolicyService {
         policy.setStatus(PolicyStatus.APPROVED);
         Policy updatedPolicy = policyRepository.save(policy);
 
-        publishEvent(GovernanceEvent.builder()
+        GovernanceEvent event = GovernanceEvent.builder()
                 .eventType("policy-approved")
                 .policyId(updatedPolicy.getId())
                 .actor(request.getActor())
@@ -114,7 +134,10 @@ public class PolicyService {
                 .previousStatus(PolicyStatus.PENDING_APPROVAL.toString())
                 .newStatus(updatedPolicy.getStatus().toString())
                 .timestamp(LocalDateTime.now())
-                .build());
+                .build();
+
+        publishEvent(event);
+        logAuditViaGrpc("policy-approved", updatedPolicy.getId(), request.getActor());
 
         log.info("Policy approved successfully with ID: {}", id);
         return mapToResponse(updatedPolicy);
@@ -132,7 +155,7 @@ public class PolicyService {
         policy.setStatus(PolicyStatus.REJECTED);
         Policy updatedPolicy = policyRepository.save(policy);
 
-        publishEvent(GovernanceEvent.builder()
+        GovernanceEvent event = GovernanceEvent.builder()
                 .eventType("policy-rejected")
                 .policyId(updatedPolicy.getId())
                 .actor(request.getActor())
@@ -140,7 +163,10 @@ public class PolicyService {
                 .previousStatus(PolicyStatus.PENDING_APPROVAL.toString())
                 .newStatus(updatedPolicy.getStatus().toString())
                 .timestamp(LocalDateTime.now())
-                .build());
+                .build();
+
+        publishEvent(event);
+        logAuditViaGrpc("policy-rejected", updatedPolicy.getId(), request.getActor());
 
         log.info("Policy rejected successfully with ID: {}", id);
         return mapToResponse(updatedPolicy);
@@ -166,9 +192,35 @@ public class PolicyService {
     private void publishEvent(GovernanceEvent event) {
         try {
             kafkaTemplate.send(GOVERNANCE_EVENTS_TOPIC, event);
-            log.info("Event published: {}", event.getEventType());
+            log.info("Event published to Kafka: {}", event.getEventType());
         } catch (Exception e) {
-            log.error("Failed to publish event: {}", event.getEventType(), e);
+            log.error("Failed to publish event to Kafka: {}", event.getEventType(), e);
+        }
+    }
+
+
+     // Log audit via gRPC
+
+    private void logAuditViaGrpc(String eventType, Long policyId, String actor) {
+        if ("grpc".equals(auditMode) || "both".equals(auditMode)) {
+            try {
+                AuditRequest request = AuditRequest.newBuilder()
+                        .setEventType(eventType)
+                        .setPolicyId(policyId)
+                        .setActor(actor)
+                        .setTimestamp(Instant.now().toString())
+                        .build();
+
+                AuditResponse response = auditServiceStub.logAction(request);
+
+                if (response.getSuccess()) {
+                    log.info("Audit logged via gRPC: {}", eventType);
+                } else {
+                    log.warn("gRPC audit failed: {}", response.getMessage());
+                }
+            } catch (StatusRuntimeException e) {
+                log.error("gRPC call to audit service failed: {}", e.getMessage());
+            }
         }
     }
 
