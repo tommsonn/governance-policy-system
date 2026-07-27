@@ -1,1 +1,3 @@
+com\governance\config\RateLimiterConfig.class
 com\governance\GatewayApplication.class
+com\governance\controller\FallbackController.class

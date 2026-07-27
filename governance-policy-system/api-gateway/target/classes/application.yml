@@ -12,17 +12,47 @@ spring:
           enabled: true
           lower-case-service-id: false
       routes:
+        # POLICY SERVICE ROUTES
         - id: policy-service
           uri: lb://POLICY-SERVICE
           predicates:
             - Path=/policies/**
             - Method=GET,POST,PUT,DELETE
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: policyServiceCircuitBreaker
+                fallbackUri: forward:/fallback/policies
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 3
+                redis-rate-limiter.burstCapacity: 5
+                key-resolver: "#{@ipKeyResolver}"
 
+        # AUDIT SERVICE ROUTES
         - id: audit-service
           uri: lb://AUDIT-SERVICE
           predicates:
             - Path=/audit/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: auditServiceCircuitBreaker
+                fallbackUri: forward:/fallback/audit
 
+        # FALLBACK ROUTES
+        - id: fallback
+          uri: lb://API-GATEWAY
+          predicates:
+            - Path=/fallback/**
+
+  # REDIS CONFIGURATION (For Rate Limiting)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+# EUREKA SERVICE DISCOVERY
 eureka:
   client:
     service-url:
@@ -30,12 +60,34 @@ eureka:
   instance:
     prefer-ip-address: true
 
+# RESILIENCE4J CIRCUIT BREAKER
+resilience4j:
+  circuitbreaker:
+    instances:
+      policyService:
+        failureRateThreshold: 50
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowSize: 10
+        waitDurationInOpenState: 30s
+      auditService:
+        failureRateThreshold: 50
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowSize: 10
+        waitDurationInOpenState: 30s
+
+# ACTUATOR / MANAGEMENT
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info,gateway,circuitbreakers,metrics
+  endpoint:
+    gateway:
+      enabled: true
 
+# LOGGING
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
