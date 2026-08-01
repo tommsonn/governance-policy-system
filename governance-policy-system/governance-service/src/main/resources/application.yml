@@ -1,0 +1,83 @@
+
+# SERVER CONFIGURATION
+server:
+  port: 8081
+  servlet:
+    context-path: /
+
+# SPRING APPLICATION NAME
+spring:
+  application:
+    name: policy-service
+
+  # DATABASE CONFIGURATION - PostgreSQL
+  datasource:
+    url: jdbc:postgresql://localhost:5434/governance_db
+    username: governance_user
+    password: 123456
+    driver-class-name: org.postgresql.Driver
+
+  # JPA / HIBERNATE CONFIGURATION
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  # KAFKA PRODUCER CONFIGURATION
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# EUREKA SERVICE DISCOVERY
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka:123456@localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+# gRPC CLIENT CONFIGURATION
+grpc:
+  client:
+    audit-service:
+      address: static://localhost:9090
+      enable-keep-alive: true
+      keep-alive-without-calls: true
+      negotiation-type: plaintext
+
+# AUDIT MODE: kafka | grpc | both
+app:
+  audit:
+    mode: both
+
+# LOGGING CONFIGURATION
+logging:
+  level:
+    com.governance: DEBUG
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    net.devh.boot.grpc: DEBUG
+
+# SWAGGER / OPENAPI
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+# ACTUATOR / MANAGEMENT
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  info:
+    env:
+      enabled: true

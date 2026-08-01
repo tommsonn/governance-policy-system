@@ -1,0 +1,72 @@
+
+# SERVER CONFIGURATION
+server:
+  port: 8082
+
+# SPRING APPLICATION NAME
+spring:
+  application:
+    name: audit-service
+
+  # DATABASE CONFIGURATION - PostgreSQL
+  datasource:
+    url: jdbc:postgresql://localhost:5433/audit_db
+    username: audit_user
+    password: 123456
+    driver-class-name: org.postgresql.Driver
+
+  # JPA / HIBERNATE CONFIGURATION
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  # KAFKA CONSUMER CONFIGURATION
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: audit-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: "*"
+            value:
+              default:
+                type: com.governance.event.PolicyEvent
+
+# EUREKA SERVICE DISCOVERY
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka:123456@localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+# gRPC SERVER CONFIGURATION
+grpc:
+  server:
+    port: 9090
+
+# LOGGING CONFIGURATION
+logging:
+  level:
+    com.audit: DEBUG
+    org.springframework.kafka: INFO
+    net.devh.boot.grpc: DEBUG
+
+# ACTUATOR / MANAGEMENT
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  info:
+    env:
+      enabled: true
