@@ -12,7 +12,13 @@ spring:
           enabled: true
           lower-case-service-id: false
       routes:
-        # POLICY SERVICE ROUTES
+        # AUTHENTICATION ROUTES (PUBLIC - No JWT Required)
+        - id: auth-service
+          uri: lb://API-GATEWAY
+          predicates:
+            - Path=/auth/**
+
+        # POLICY SERVICE ROUTES (PROTECTED - JWT Required)
         - id: policy-service
           uri: lb://POLICY-SERVICE
           predicates:
@@ -29,7 +35,7 @@ spring:
                 redis-rate-limiter.burstCapacity: 5
                 key-resolver: "#{@ipKeyResolver}"
 
-        # AUDIT SERVICE ROUTES
+        # AUDIT SERVICE ROUTES (PROTECTED - JWT Required)
         - id: audit-service
           uri: lb://AUDIT-SERVICE
           predicates:
@@ -40,17 +46,33 @@ spring:
                 name: auditServiceCircuitBreaker
                 fallbackUri: forward:/fallback/audit
 
-        # FALLBACK ROUTES
+
+        # FALLBACK ROUTES (PUBLIC)
+
         - id: fallback
           uri: lb://API-GATEWAY
           predicates:
             - Path=/fallback/**
 
   # REDIS CONFIGURATION (For Rate Limiting)
+
   data:
     redis:
       host: localhost
       port: 6379
+
+  # SECURITY CONFIGURATION
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8080/.well-known/jwks.json
+
+
+# JWT CONFIGURATION
+jwt:
+  secret: mySuperSecretKeyForJWTValidationThatIsAtLeast32Chars
+  expiration: 86400000   # 24 hours in milliseconds
 
 # EUREKA SERVICE DISCOVERY
 eureka:
@@ -91,4 +113,5 @@ management:
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
     com.governance: DEBUG

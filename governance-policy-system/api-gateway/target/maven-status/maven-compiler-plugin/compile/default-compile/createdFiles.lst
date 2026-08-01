@@ -1,3 +1,9 @@
+com\governance\config\SecurityConfig.class
+com\governance\util\JwtUtil.class
+com\governance\dto\LoginRequest.class
+com\governance\dto\LoginResponse.class
 com\governance\config\RateLimiterConfig.class
+com\governance\controller\AuthController.class
+com\governance\filter\JwtAuthenticationFilter.class
 com\governance\GatewayApplication.class
 com\governance\controller\FallbackController.class

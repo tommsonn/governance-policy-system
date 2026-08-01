@@ -1,3 +1,9 @@
+C:\Users\hi\Desktop\governance-policy-system\governance-policy-system\api-gateway\src\main\java\com\governance\dto\LoginRequest.java
+C:\Users\hi\Desktop\governance-policy-system\governance-policy-system\api-gateway\src\main\java\com\governance\controller\AuthController.java
+C:\Users\hi\Desktop\governance-policy-system\governance-policy-system\api-gateway\src\main\java\com\governance\config\SecurityConfig.java
+C:\Users\hi\Desktop\governance-policy-system\governance-policy-system\api-gateway\src\main\java\com\governance\util\JwtUtil.java
 C:\Users\hi\Desktop\governance-policy-system\governance-policy-system\api-gateway\src\main\java\com\governance\GatewayApplication.java
 C:\Users\hi\Desktop\governance-policy-system\governance-policy-system\api-gateway\src\main\java\com\governance\config\RateLimiterConfig.java
 C:\Users\hi\Desktop\governance-policy-system\governance-policy-system\api-gateway\src\main\java\com\governance\controller\FallbackController.java
+C:\Users\hi\Desktop\governance-policy-system\governance-policy-system\api-gateway\src\main\java\com\governance\filter\JwtAuthenticationFilter.java
+C:\Users\hi\Desktop\governance-policy-system\governance-policy-system\api-gateway\src\main\java\com\governance\dto\LoginResponse.java
