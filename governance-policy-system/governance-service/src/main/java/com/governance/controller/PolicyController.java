@@ -69,12 +69,15 @@ public class PolicyController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Policy approved successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid status transition"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - ADMIN role required"),
             @ApiResponse(responseCode = "404", description = "Policy not found")
     })
     public ResponseEntity<PolicyResponse> approvePolicy(
             @PathVariable Long id,
-            @Valid @RequestBody PolicyStatusUpdateRequest request) {
-        return ResponseEntity.ok(policyService.approvePolicy(id, request));
+            @Valid @RequestBody PolicyStatusUpdateRequest request,
+            @RequestHeader(value = "X-User-Role", required = false) String role) {
+        PolicyResponse response = policyService.approvePolicy(id, request, role);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/reject")
@@ -82,11 +85,13 @@ public class PolicyController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Policy rejected successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid status transition"),
+            @ApiResponse(responseCode = "403", description = "Forbidden - ADMIN role required"),
             @ApiResponse(responseCode = "404", description = "Policy not found")
     })
     public ResponseEntity<PolicyResponse> rejectPolicy(
             @PathVariable Long id,
-            @Valid @RequestBody PolicyStatusUpdateRequest request) {
-        return ResponseEntity.ok(policyService.rejectPolicy(id, request));
+            @Valid @RequestBody PolicyStatusUpdateRequest request,
+            @RequestHeader(value = "X-User-Role", required = false) String role) {
+        return ResponseEntity.ok(policyService.rejectPolicy(id, request, role));
     }
 }

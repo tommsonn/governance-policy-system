@@ -4,6 +4,7 @@ import com.governance.dto.CreatePolicyRequest;
 import com.governance.dto.GovernanceEvent;
 import com.governance.dto.PolicyResponse;
 import com.governance.dto.PolicyStatusUpdateRequest;
+import com.governance.exception.AuthorizationException;
 import com.governance.exception.InvalidPolicyStatusTransitionException;
 import com.governance.exception.PolicyNotFoundException;
 import com.governance.grpc.AuditRequest;
@@ -115,8 +116,12 @@ public class PolicyService {
     }
 
     @Transactional
-    public PolicyResponse approvePolicy(Long id, PolicyStatusUpdateRequest request) {
-        log.info("Approving policy with ID: {} by: {}", id, request.getActor());
+    public PolicyResponse approvePolicy(Long id, PolicyStatusUpdateRequest request, String role) {
+        log.info("Approving policy with ID: {} by: {}, Role: {}", id, request.getActor(), role);
+
+        if (role == null || !"ADMIN".equals(role)) {
+            throw new AuthorizationException("Only ADMIN users can approve policies. Current role: " + role);
+        }
 
         Policy policy = policyRepository.findById(id)
                 .orElseThrow(() -> new PolicyNotFoundException("Policy not found with ID: " + id));
@@ -144,8 +149,12 @@ public class PolicyService {
     }
 
     @Transactional
-    public PolicyResponse rejectPolicy(Long id, PolicyStatusUpdateRequest request) {
-        log.info("Rejecting policy with ID: {} by: {}", id, request.getActor());
+    public PolicyResponse rejectPolicy(Long id, PolicyStatusUpdateRequest request, String role) {
+        log.info("Rejecting policy with ID: {} by: {}, Role: {}", id, request.getActor(), role);
+
+        if (role == null || !"ADMIN".equals(role)) {
+            throw new AuthorizationException("Only ADMIN users can reject policies. Current role: " + role);
+        }
 
         Policy policy = policyRepository.findById(id)
                 .orElseThrow(() -> new PolicyNotFoundException("Policy not found with ID: " + id));
@@ -198,8 +207,7 @@ public class PolicyService {
         }
     }
 
-
-     // Log audit via gRPC
+    // Log audit via gRPC
 
     private void logAuditViaGrpc(String eventType, Long policyId, String actor) {
         if ("grpc".equals(auditMode) || "both".equals(auditMode)) {
