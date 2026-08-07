@@ -1,76 +1,121 @@
 # Governance Policy Management System
 
-A microservices-based governance policy management system with audit logging, built using Spring Boot, Apache Kafka, and PostgreSQL.
+A microservices-based governance policy management system with audit logging, built using Spring Boot, Apache Kafka, PostgreSQL, and enhanced with API Gateway, JWT Authentication, Service Discovery, and gRPC.
 
-## Architecture
+##  Architecture Explanation
 
-The system follows an event-driven microservices architecture with two independent services communicating asynchronously via Apache Kafka.
+### System Architecture 
 
-  Governance Service (Port 8081) 
- (REST API) │─────▶│ - Policy CRUD operations 
-  - Status transitions 
-  - Kafka event publisher 
-   │
-   ▼
- Kafka Topic (Port 9092)
- governance-events
-   │
-   ▼
- Audit Service (Port 8082) 
-   - Kafka event consumer 
-   - Immutable audit logging 
-   - PostgreSQL (Audit Logs) 
+The system follows an **event-driven microservices architecture** with two independent services communicating asynchronously via Apache Kafka, enhanced with an API Gateway, service discovery, and gRPC.
+
+                         ┌─────────────┐              
+                         |   Client    |
+                         └─────────────┘
+                                |
+                                ▼
+                ┌───────────────────────────────────────────┐
+                │ API Gateway (Spring Cloud Gateway)        │
+                |     - JWT Authentication & Authoriza      │
+                │     - Rate Limiting (Redis)               │
+                │     - Circuit Breaker (Resilience4j)      │
+                │     - Service Discovery (Eureka)          │
+                │     - Load Balancing                      │
+                └───────────────────────────────────────────┘
+                                 │
+             ┌───────────────────┼───────────────────┐
+             ▼                   ▼                   ▼
+     ┌─────────────────────┐ ┌────────────────┐ ┌───────────────────┐
+     │    Eureka Server    │ │ Policy Service │ │ Audit Service     │
+     │  (Service Registry) │ │ (Port 8081)    │ │ (Port 8082)       │
+     │ (Port 8761)         │ │ - REST APIs    │ │ - Kafka Consumer  │
+     └─────────────────────┘ │ - gRPC Client  │ │ - gRPC Server     │
+                │            └────────────────┘ └───────────────────┘
+                │                   │                         │
+                │                   └───       gRPC   ────────┘
+                │                       (Internal communication)
+                ▼
+    ┌─────────────────────────────────────────┐
+    │ Redis (Rate Limiting)                   │
+    │ (Port 6379)                             │
+    └─────────────────────────────────────────┘
+
 
 ### Key Components
 
-| Component | Description |
-|-----------|-------------|
-| **Governance Service** | Manages policies and their lifecycle. Publishes events to Kafka. |
-| **Audit Service** | Listens to Kafka events and stores immutable audit logs. |
-| **Apache Kafka** | Event streaming platform for async communication. |
-| **PostgreSQL** | Separate databases for policies and audit logs. |
-
-## System Flow
-
-1. **Client** sends request to Governance Service (REST API)
-2. **Governance Service**:
-   - Creates/updates policy in PostgreSQL
-   - Publishes event to Kafka (`governance-events` topic)
-3. **Kafka** stores events asynchronously
-4. **Audit Service** consumes events from Kafka
-5. **Audit Service** stores audit logs in PostgreSQL
+  | Component | Description |
+  |-----------|-------------|
+  | **API Gateway** | Single entry point for all client requests. Handles JWT validation, rate limiting, circuit breaking, and routing. |
+  | **Eureka Server** | Service registry that enables dynamic service discovery and load balancing. |
+  | **Policy Service** | Manages governance policies and their lifecycle (DRAFT → PENDING_APPROVAL → APPROVED/REJECTED). Publishes events to Kafka. |
+  | **Audit Service** | Listens to Kafka events and gRPC requests, storing immutable audit logs. |
+  | **Apache Kafka** | Event streaming platform for asynchronous communication between services. |
+  | **PostgreSQL** | Separate databases for policies (governance) and audit logs (audit). |
+  | **Redis** | In-memory data store used for rate limiting. |
 
 ### Policy Lifecycle
+    DRAFT → PENDING_APPROVAL → APPROVED
+    DRAFT → PENDING_APPROVAL → REJECTED
 
-DRAFT → PENDING_APPROVAL → APPROVED
-DRAFT → PENDING_APPROVAL → REJECTED
+### Authentication Flow
 
-## Instructions to run the system
-  1. Start Infrastructure with Docker
-     on cmd run docker-compose up -d
-   This starts:
+  1. **Client** sends login request to `/auth/login` with username/password
+  2. **AuthController** validates credentials and returns JWT token
+  3. **Client** sends subsequent requests with JWT token in `Authorization: Bearer <token>` header
+  4. **JwtAuthenticationFilter** validates the token and extracts user identity
+  5. **Gateway** forwards user identity to downstream services via headers:
+     - `X-User-Id`: User ID
+     - `X-User-Name`: Username
+     - `X-User-Role`: User role (ADMIN/USER)
 
-    PostgreSQL on port 5432 (Governance DB)
-    PostgreSQL on port 5433 (Audit DB)
-    Zookeeper on port 2181
-    Kafka on port 9092
-    
-  2. Create Kafka Topic
-  run below command on cmd
+   ##  Instructions to Run the System
 
-     docker exec -it kafka-broker kafka-topics --create \
-       --topic governance-events \
-       --bootstrap-server localhost:9092 \
-       --partitions 3 \
-       --replication-factor 1
+### 1. Clone the Repository
 
-   4. Running the Services
-      - Start Governance Service
-      - Start Audit Service
-   5. Testing the System
-      using Swagger UI test the system with  this URL http://localhost:8081/swagger-ui/index.html
-      
+    ```bash
+     git clone https://github.com/tommsonn/governance-policy-system.git
+     cd governance-policy-system
 
+### 2. Start Infrastructure with Docker
+    docker-compose up -d
 
+  This starts:
+- PostgreSQL on port 5434 (Governance DB)
+- PostgreSQL on port 5433 (Audit DB)
+- Zookeeper on port 2181
+- Kafka on port 9092
+- Redis on port 6379 (Rate Limiting)
 
+### 3. Create Kafka Topic
 
+    docker exec -it kafka-broker kafka-topics --create \
+    --topic governance-events \
+    --bootstrap-server localhost:9092 \
+    --partitions 3 \
+    --replication-factor 1
+
+### 4. Build All Services
+     1. Build Governance Service
+         cd ../governance-service
+         mvn clean install -DskipTests
+    2. Build Audit Service
+         cd ../audit-service
+         mvn clean install -DskipTests
+    3. Build API Gateway
+         cd ../api-gateway
+         mvn clean install -DskipTests
+    4. Build Eureka Server
+         cd ../eureka-server
+         mvn clean install -DskipTests   
+
+### 5. Start Services (In Order)
+    1. Start Eureka Server (Service Registry)
+    2. Start API Gateway
+    3. Start Audit Service
+    4. Start Governance Service
+
+### 6. Service URLs
+    - API Gateway	=>	http://localhost:8080
+    - Governance Service => http://localhost:8081
+    - Audit Service	=>	http://localhost:8082
+    - Eureka Server	=>	http://localhost:8761
+    - Swagger UI	=>	http://localhost:8081/swagger-ui/index.html
