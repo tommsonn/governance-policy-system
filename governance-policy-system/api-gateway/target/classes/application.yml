@@ -23,7 +23,7 @@ spring:
           uri: lb://POLICY-SERVICE
           predicates:
             - Path=/policies/**
-            - Method=GET,POST,PUT,DELETE
+            - Method=GET,POST
           filters:
             - name: CircuitBreaker
               args:

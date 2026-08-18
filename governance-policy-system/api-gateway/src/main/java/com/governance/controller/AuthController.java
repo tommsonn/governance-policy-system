@@ -24,8 +24,8 @@ public class AuthController {
     private final BCryptPasswordEncoder passwordEncoder;
 
     private static final Map<String, String> USERS = Map.of(
-            "admin", "$2a$12$aDqupRxq8TnwBBqlPNg/Eul0pv.cMNmM34xgle1/U09mkVN5uKd6O",
-            "user", "$2a$12$yNTqkDWkI7xzN3M9Eqlm4.Z5ZME3QiVO7Uiuimh9aAwk2rj1/Fabu"
+            "admin", "$2a$12$aDqupRxq8TnwBBqlPNg/Eul0pv.cMNmM34xgle1/U09mkVN5uKd6O",// password: admin123
+            "user", "$2a$12$yNTqkDWkI7xzN3M9Eqlm4.Z5ZME3QiVO7Uiuimh9aAwk2rj1/Fabu" // password: user123
     );
 
     private static final Map<String, String> ROLES = Map.of(
