@@ -39,8 +39,7 @@ spring:
               packages: "*"
             value:
               default:
-                type: com.governance.event.PolicyEvent
-
+                type: com.governance.dto.GovernanceEvent
 # EUREKA SERVICE DISCOVERY
 eureka:
   client:

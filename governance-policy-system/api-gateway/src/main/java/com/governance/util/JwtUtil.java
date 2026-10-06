@@ -56,16 +56,4 @@ public class JwtUtil {
                 .parseClaimsJws(token)
                 .getBody();
     }
-
-    public String extractUsername(String token) {
-        return extractClaims(token).getSubject();
-    }
-
-    public String extractRole(String token) {
-        return extractClaims(token).get("role", String.class);
-    }
-
-    public Long extractUserId(String token) {
-        return extractClaims(token).get("userId", Long.class);
-    }
 }
