@@ -1,5 +1,6 @@
 package com.governance.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.governance.dto.CreatePolicyRequest;
 import com.governance.dto.GovernanceEvent;
 import com.governance.dto.PolicyResponse;
@@ -10,14 +11,16 @@ import com.governance.exception.PolicyNotFoundException;
 import com.governance.grpc.AuditRequest;
 import com.governance.grpc.AuditResponse;
 import com.governance.grpc.AuditServiceGrpc;
+import com.governance.model.OutboxEvent;
+import com.governance.model.OutboxStatus;
 import com.governance.model.Policy;
 import com.governance.model.PolicyStatus;
+import com.governance.repository.OutboxRepository;
 import com.governance.repository.PolicyRepository;
 import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,13 +35,12 @@ import java.util.stream.Collectors;
 public class PolicyService {
 
     private final PolicyRepository policyRepository;
-    private final KafkaTemplate<String, GovernanceEvent> kafkaTemplate;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
     private final AuditServiceGrpc.AuditServiceBlockingStub auditServiceStub;
 
     @Value("${app.audit.mode:both}")
     private String auditMode; // "kafka", "grpc", "both"
-
-    private static final String GOVERNANCE_EVENTS_TOPIC = "governance-events";
 
     @Transactional
     public PolicyResponse createPolicy(CreatePolicyRequest request) {
@@ -53,7 +55,7 @@ public class PolicyService {
 
         Policy savedPolicy = policyRepository.save(policy);
 
-        // Publish event to Kafka
+        // Build event
         GovernanceEvent event = GovernanceEvent.builder()
                 .eventType("policy-created")
                 .policyId(savedPolicy.getId())
@@ -63,7 +65,7 @@ public class PolicyService {
                 .timestamp(LocalDateTime.now())
                 .build();
 
-        publishEvent(event);
+        saveToOutbox(event, savedPolicy.getId());
 
         // Log via gRPC
         logAuditViaGrpc("policy-created", savedPolicy.getId(), savedPolicy.getCreatedBy());
@@ -108,7 +110,8 @@ public class PolicyService {
                 .timestamp(LocalDateTime.now())
                 .build();
 
-        publishEvent(event);
+        saveToOutbox(event, updatedPolicy.getId());
+
         logAuditViaGrpc("policy-submitted", updatedPolicy.getId(), request.getActor());
 
         log.info("Policy submitted successfully with ID: {}", id);
@@ -141,7 +144,8 @@ public class PolicyService {
                 .timestamp(LocalDateTime.now())
                 .build();
 
-        publishEvent(event);
+        saveToOutbox(event, updatedPolicy.getId());
+
         logAuditViaGrpc("policy-approved", updatedPolicy.getId(), request.getActor());
 
         log.info("Policy approved successfully with ID: {}", id);
@@ -174,11 +178,38 @@ public class PolicyService {
                 .timestamp(LocalDateTime.now())
                 .build();
 
-        publishEvent(event);
+        saveToOutbox(event, updatedPolicy.getId());
+
         logAuditViaGrpc("policy-rejected", updatedPolicy.getId(), request.getActor());
 
         log.info("Policy rejected successfully with ID: {}", id);
         return mapToResponse(updatedPolicy);
+    }
+
+    private void saveToOutbox(GovernanceEvent event, Long policyId) {
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+
+            OutboxEvent outboxEvent = OutboxEvent.builder()
+                    .aggregateId(policyId)
+                    .aggregateType("POLICY")
+                    .eventType(event.getEventType())
+                    .payload(payload)
+                    .status(OutboxStatus.PENDING)
+                    .retryCount(0)
+                    .build();
+
+            outboxRepository.save(outboxEvent);
+
+            log.info("📥 Event saved to outbox: {} for policy {}",
+                    event.getEventType(), policyId);
+
+        } catch (Exception e) {
+            log.error("❌ Failed to save event to outbox: {}",
+                    event.getEventType(), e);
+            // Throw exception to rollback the entire transaction
+            throw new RuntimeException("Failed to save event to outbox", e);
+        }
     }
 
     private void validateStatusTransition(PolicyStatus currentStatus, PolicyStatus targetStatus) {
@@ -195,15 +226,6 @@ public class PolicyService {
         } else {
             throw new InvalidPolicyStatusTransitionException(
                     "Cannot change status from " + currentStatus + " to " + targetStatus);
-        }
-    }
-
-    private void publishEvent(GovernanceEvent event) {
-        try {
-            kafkaTemplate.send(GOVERNANCE_EVENTS_TOPIC, event);
-            log.info("Event published to Kafka: {}", event.getEventType());
-        } catch (Exception e) {
-            log.error("Failed to publish event to Kafka: {}", event.getEventType(), e);
         }
     }
 
