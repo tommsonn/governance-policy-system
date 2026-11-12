@@ -71,6 +71,8 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operations-sorter: method
+    enabled: true
+  packages-to-scan: com.governance.controller
 
 # ACTUATOR / MANAGEMENT
 management:

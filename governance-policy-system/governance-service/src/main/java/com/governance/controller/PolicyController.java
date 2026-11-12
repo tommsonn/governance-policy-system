@@ -5,6 +5,7 @@ import com.governance.dto.PolicyResponse;
 import com.governance.dto.PolicyStatusUpdateRequest;
 import com.governance.service.PolicyService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -75,7 +76,7 @@ public class PolicyController {
     public ResponseEntity<PolicyResponse> approvePolicy(
             @PathVariable Long id,
             @Valid @RequestBody PolicyStatusUpdateRequest request,
-            @RequestHeader(value = "X-User-Role", required = false) String role) {
+            @Parameter(hidden = true) @RequestHeader(value = "X-User-Role", required = false) String role) {
         PolicyResponse response = policyService.approvePolicy(id, request, role);
         return ResponseEntity.ok(response);
     }
@@ -91,7 +92,7 @@ public class PolicyController {
     public ResponseEntity<PolicyResponse> rejectPolicy(
             @PathVariable Long id,
             @Valid @RequestBody PolicyStatusUpdateRequest request,
-            @RequestHeader(value = "X-User-Role", required = false) String role) {
+            @Parameter(hidden = true) @RequestHeader(value = "X-User-Role", required = false) String role) {
         return ResponseEntity.ok(policyService.rejectPolicy(id, request, role));
     }
 }

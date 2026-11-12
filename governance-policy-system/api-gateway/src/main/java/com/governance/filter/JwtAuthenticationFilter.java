@@ -28,8 +28,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "/auth/login",
             "/actuator/health",
             "/actuator/info",
-            "/fallback"
-    );
+            "/fallback",
+            "/swagger-ui",
+            "/api-docs",
+            "/webjars"
+            );
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {

@@ -31,8 +31,8 @@ spring:
                 fallbackUri: forward:/fallback/policies
             - name: RequestRateLimiter
               args:
-                redis-rate-limiter.replenishRate: 3
-                redis-rate-limiter.burstCapacity: 5
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 10
                 key-resolver: "#{@ipKeyResolver}"
 
         # AUDIT SERVICE ROUTES (PROTECTED - JWT Required)
@@ -115,3 +115,20 @@ logging:
     org.springframework.cloud.gateway: DEBUG
     org.springframework.security: DEBUG
     com.governance: DEBUG
+
+#springdoc
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    disable-swagger-default-url: true
+    urls:
+      - name: Policy Service API
+        url: http://localhost:8081/api-docs
+      - name: Gateway authentication and Health
+        url: /api-docs
+  webjars:
+    prefix: ""
